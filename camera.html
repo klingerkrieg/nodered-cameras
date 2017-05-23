@@ -3,11 +3,12 @@
         category: 'function',
         color: '#a6bbcf',
         defaults: {
-            name: {value:""}
+            name: {value:""},
+        search_ports: {value:"80,8080,8081"}
         },
         inputs:1,
         outputs:1,
-        icon: "file.png",
+        icon: "camera.png",
         label: function() {
             return this.name||"camera";
         }
@@ -19,8 +20,19 @@
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
+        <div class="form-row">
+        <label for="node-input-search_ports"><i class="icon-tag"></i> Ports</label>
+        <input type="text" id="node-input-search_ports">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="camera">
-    <p>A simple node that converts the message payloads into all lower-case characters</p>
+    <p>Um nó que procura câmeras na rede e distribui o streaming.<br/>
+    Requer:
+    <ul>
+        <li>apt-get install nmap</li>
+        <li>npm install node-nmap</li>
+        <li>npm install http-shutdown</li>
+    </ul>    
+    </p>
 </script>

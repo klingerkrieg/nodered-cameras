@@ -8,7 +8,10 @@ module.exports = function(RED) {
         var node = this;
 		var global_msg;
 		
-		
+		ports_to_scan = config.search_ports;
+		if (ports_to_scan == ""){
+			ports_to_scan = '80,8080,8081';
+		}
 		
         this.on('input', function(msg) {
 			
@@ -16,7 +19,7 @@ module.exports = function(RED) {
 			var fs = require('fs');
 			
 			
-			ports_to_scan = '80,8080,8081';
+			
 			paths = ['/video','/image/jpeg.cgi'];
 			scan(ports_to_scan,paths,node,msg);
 			
