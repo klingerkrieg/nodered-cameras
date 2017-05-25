@@ -1,7 +1,11 @@
 /**
- * Autor:Alan Klinger klingerkrieg@gmail.com / Lucas Dantas lulucadantas@gmail.com
+ * Autores:Alan Klinger klingerkrieg@gmail.com
+ * 		   Lucas Dantas lulucadantas@gmail.com
  * Plugin do node-red
  */
+var hosts_config;
+var ports_to_scan;
+
 module.exports = function(RED) {
     function CameraNode(config) {
         RED.nodes.createNode(this,config);
@@ -12,18 +16,21 @@ module.exports = function(RED) {
 		if (ports_to_scan == ""){
 			ports_to_scan = '80,8080,8081';
 		}
+
+		hosts_config = config.hosts.split("\n");
+		var nmap_config = config.nmap;
 		
         this.on('input', function(msg) {
 			
-			
 			var fs = require('fs');
 			
-			
-			
-			paths = ['/video','/image/jpeg.cgi'];
-			scan(ports_to_scan,paths,node,msg);
-			
-			
+			paths = ['/video','/image/jpeg.cgi','/mjpeg'];
+			//caso o usuario opte por usar o nmap
+			if (nmap_config){
+				scan(ports_to_scan,paths,node,msg);
+			} else {
+				getStream([],node,msg);
+			}
 			
 			
         });
@@ -32,14 +39,62 @@ module.exports = function(RED) {
 }
 
 /**
+ * Mescla os hosts encontrados com os que estão configurados
+ */
+function hostsConfigToHosts(hostConfig,hosts){
+	//separa um endereço compelto em partes dentro de um json
+	//http://192.168.0.2:80/video
+	
+	for (var i = 0; i < hostConfig.length; i++){
+		//se nao houver nenhuma url configurada
+		if (hostConfig[i] == ""){
+			continue;
+		}
+		parts = hostConfig[i].split("://")
+		protocol = parts[0];
+		
+		if (parts[1].indexOf("/") == -1){
+			host = parts[1];
+			urlPath = "";
+		} else {
+			host = parts[1].substr(0,parts[1].indexOf("/"))
+			urlPath = parts[1].substr(parts[1].indexOf("/"))
+		}
+		
+		host = host.split(":")
+		if (host.length > 1){//se houver porta
+			port = host[1];
+			host = host[0];
+		} else {
+			port = 80;//caso seja porta padrao
+			host = host[0];
+		}
+		
+		hosts.push({ip:host,
+					port:port,
+					path:urlPath,
+					type:null,
+					protocol:protocol});
+	}
+	return hosts;
+}
+
+/**
  * Inicia o stream de videos
  */
 function getStream(hosts,node,msg){
+	hosts = hostsConfigToHosts(hosts_config,hosts);
 	
 	//hosts = [{ip:'192.168.0.14',port:'8080'},{ip:'192.168.0.12',port:'8081'},{ip:'192.168.0.23',port:'8080'}];
 	//hosts = [{ip:'192.168.0.14',port:'80'}]
 	//hosts
-	console.log("Hosts encontrados...")
+	/*hosts = [{ip:'192.168.0.11',
+			port:8080,
+			path:"/mjpeg",
+			type:"mjpeg",
+			protocol:"http"}]*/
+
+	console.log("Hosts encontrados...");
 	console.log(hosts);
 	
 	var request = require('request');
@@ -61,7 +116,7 @@ function getStream(hosts,node,msg){
 		for (var i = 0; i < hosts.length; i++){
 			host = hosts[i];
 			
-			url = "http://"+host.ip+":"+host.port+host.path;
+			url = host.protocol+"://"+host.ip+":"+host.port+host.path;
 			console.log(url);
 			if (req.url === '/'+host.ip.replace(/\./g, '_')) {
 				var x = request(url);
@@ -88,7 +143,7 @@ function getStream(hosts,node,msg){
 			autoUpdate = 'video';
 		}
 		//quando é via plugin do vlc
-		if (host.type == 'mpegurl'){
+		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
 			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://localhost:1337/'+host.ip.replace(/\./g, '_')+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
@@ -138,7 +193,8 @@ function filtrarVideos(hosts,paths,node,msg){
 			};
 
 			httpTest.get(options, function(resp){
-				console.log("Test:"+resp.req._headers.host);
+				console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
+				
 				if (resp.statusCode == 200){
 					console.log(resp.headers);
 					host_part = resp.req._headers.host.split(":");
@@ -146,7 +202,12 @@ function filtrarVideos(hosts,paths,node,msg){
 						host_part[1] = 80;
 					}
 					if (hostExistsIn(host_part[0],hosts_filtrados) == false){
-						hosts_filtrados.push({ip:host_part[0],port:host_part[1], path:resp.req.path, type:resp.headers['content-type'].split('/')[1]});
+						
+						hosts_filtrados.push({ip:host_part[0],
+											  port:host_part[1],
+											  path:resp.req.path,
+											  type:resp.headers['content-type'].split('/')[1],
+											  protocol:"http"});
 					}
 					
 				}
@@ -165,6 +226,7 @@ function filtrarVideos(hosts,paths,node,msg){
 		console.log("Testando videos...");
 		if (completes == (hosts.length * paths.length)){
 			clearInterval(interval);
+			console.log("iniciando stream");
 			//só começa a realizar o stream quando testar todos os hosts
 			getStream(hosts_filtrados,node,msg);
 		}
