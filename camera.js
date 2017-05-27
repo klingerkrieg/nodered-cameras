@@ -3,8 +3,9 @@
  * 		   Lucas Dantas lulucadantas@gmail.com
  * Plugin do node-red
  */
-var hosts_config;
-var ports_to_scan;
+var hostsConfig;
+var portsToScan;
+var networksToNmap;
 
 module.exports = function(RED) {
     function CameraNode(config) {
@@ -12,13 +13,15 @@ module.exports = function(RED) {
         var node = this;
 		var global_msg;
 		
-		ports_to_scan = config.search_ports;
-		if (ports_to_scan == ""){
-			ports_to_scan = '80,8080,8081';
+		//Carrega as configuuracoes
+		portsToScan = config.searchPorts;
+		if (portsToScan == undefined || portsToScan == ""){
+			portsToScan = '80,8080,8081';
 		}
-
-		hosts_config = config.hosts.split("\n");
-		var nmap_config = config.nmap;
+		networksToNmap = config.networksToNmap;
+		
+		hostsConfig = config.hosts.split("\n");
+		var nmapConfig = config.nmap;
 		
         this.on('input', function(msg) {
 			
@@ -26,8 +29,8 @@ module.exports = function(RED) {
 			
 			paths = ['/video','/image/jpeg.cgi','/mjpeg'];
 			//caso o usuario opte por usar o nmap
-			if (nmap_config){
-				scan(ports_to_scan,paths,node,msg);
+			if (nmapConfig){
+				scan(portsToScan,paths,node,msg);
 			} else {
 				getStream([],node,msg);
 			}
@@ -83,7 +86,7 @@ function hostsConfigToHosts(hostConfig,hosts){
  * Inicia o stream de videos
  */
 function getStream(hosts,node,msg){
-	hosts = hostsConfigToHosts(hosts_config,hosts);
+	hosts = hostsConfigToHosts(hostsConfig,hosts);
 	
 	//hosts = [{ip:'192.168.0.14',port:'8080'},{ip:'192.168.0.12',port:'8081'},{ip:'192.168.0.23',port:'8080'}];
 	//hosts = [{ip:'192.168.0.14',port:'80'}]
@@ -244,9 +247,46 @@ function filtrarVideos(hosts,paths,node,msg){
  */
 function scan(portas,paths,node,msg){
 	var nmap = require('node-nmap');
-	var hosts = [];
 	
-	var nmapscan = new nmap.nodenmap.NmapScan ('192.168.0.0/24','-p '+ports_to_scan);
+	var hosts = [];
+	var ips = "";
+
+	
+	if (networksToNmap == undefined || networksToNmap == ""){
+		//Vasculha todas as interfaces de internet
+		var os = require('os');
+		var ifaces = os.networkInterfaces();	
+		Object.keys(ifaces).forEach(function (ifname) {
+			var alias = 0;
+			
+			//desconsidera essas interfaces
+			if (ifname.toLowerCase().indexOf("loopback") > -1 || ifname.toLowerCase().indexOf("tunneling") > -1 ){
+				return;
+			}
+			
+			ifaces[ifname].forEach(function (iface) {
+				//Somente as que sejam ipv4
+				if ('IPv4' !== iface.family || iface.internal !== false) {
+					return;
+				}
+
+				if (alias >= 1) {
+					// this single interface has multiple ipv4 addresses
+					//console.log(ifname + ':' + alias, iface.address);
+				} else {
+					// this interface has only one ipv4 adress
+					cidr = subnetToCIDR(iface.netmask);
+					ips += getIpRangeNetMask(iface.address+"/"+cidr)[0]+"/"+cidr+" ";
+				}
+				++alias;
+			});
+		});
+	} else {
+		//Usa as redes configuradas
+		ips = networksToNmap;
+	}
+	console.log("["+ips+" "+portsToScan+"]");
+	var nmapscan = new nmap.nodenmap.NmapScan (ips,'-p '+portsToScan);
  
 	nmapscan.on('complete', function(data){
 		for(var i = 0; i < data.length; i++){
@@ -268,7 +308,8 @@ function scan(portas,paths,node,msg){
 	});
 	 
 	nmapscan.on('error', function(error){
-	  console.log(error);
+		console.log("nmap-error");
+	  	console.log(error);
 	});
 	nmapscan.startScan();
 	
@@ -284,4 +325,32 @@ function hostExistsIn(search,list){
 		}
 	}
 	return false;
+}
+
+function subnetToCIDR(mask){
+    var maskNodes = mask.match(/(\d+)/g);
+    var cidr = 0;
+    for(var i in maskNodes) {
+        cidr += (((maskNodes[i] >>> 0).toString(2)).match(/1/g) || []).length;
+    }
+    return cidr;
+}
+
+function getIpRangeNetMask(str) {
+  var part = str.split("/"); // part[0] = base address, part[1] = netmask
+  var ipaddress = part[0].split('.');
+  var netmaskblocks = ["0","0","0","0"];
+  if(!/\d+\.\d+\.\d+\.\d+/.test(part[1])) {
+    // part[1] has to be between 0 and 32
+    netmaskblocks = ("1".repeat(parseInt(part[1], 10)) + "0".repeat(32-parseInt(part[1], 10))).match(/.{1,8}/g);
+    netmaskblocks = netmaskblocks.map(function(el) { return parseInt(el, 2); });
+  } else {
+    // xxx.xxx.xxx.xxx
+    netmaskblocks = part[1].split('.').map(function(el) { return parseInt(el, 10) });
+  }
+  // invert for creating broadcast address (highest address)
+  var invertedNetmaskblocks = netmaskblocks.map(function(el) { return el ^ 255; });
+  var baseAddress = ipaddress.map(function(block, idx) { return block & netmaskblocks[idx]; });
+  var broadcastaddress = baseAddress.map(function(block, idx) { return block | invertedNetmaskblocks[idx]; });
+  return [baseAddress.join('.'), broadcastaddress.join('.')];
 }

@@ -4,9 +4,10 @@
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
-        search_ports: {value:"80,8080,8081"},
+        searchPorts: {value:"80,8080,8081"},
         hosts : {value:""},
-        nmap : {value:true, type:"boolean"}
+        nmap : {value:true, type:"boolean"},
+        networksToNmap : {value:""}
         },
         inputs:1,
         outputs:1,
@@ -23,14 +24,19 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-search_ports"><i class="icon-tag"></i> Ports</label>
-        <input type="text" id="node-input-search_ports">
+        <label for="node-input-searchPorts"><i class="icon-tag"></i> Ports</label>
+        <input type="text" id="node-input-searchPorts">
     </div>
     <div class="form-row">
         <label for="node-input-nmap"><i class="icon-tag"></i> Nmap</label>
         <input type="checkbox" id="node-input-nmap">
     </div>
     <div class="form-tips">Marque usar nmap caso queira que ele procure por câmeras automaticamente.</div>
+    <div class="form-row">
+        <label for="node-input-networksToNmap"><i class="icon-tag"></i> Networks</label>
+        <input type="text" id="node-input-networksToNmap">
+    </div>
+    <div class="form-tips">Caso necessário, configure uma ou mais networks para o nmap: 192.168.0.0/24</div>
     <div class="form-row">
         <label for="node-input-hosts"><i class="icon-tag"></i> Hosts</label>
         <textarea id="node-input-hosts"></textarea>
