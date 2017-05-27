@@ -27,7 +27,7 @@ module.exports = function(RED) {
 			
 			var fs = require('fs');
 			
-			paths = ['/video','/image/jpeg.cgi','/mjpeg'];
+			paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
 			//caso o usuario opte por usar o nmap
 			if (nmapConfig){
 				scan(portsToScan,paths,node,msg);
@@ -119,9 +119,13 @@ function getStream(hosts,node,msg){
 		for (var i = 0; i < hosts.length; i++){
 			host = hosts[i];
 			
-			url = host.protocol+"://"+host.ip+":"+host.port+host.path;
+			url = host.protocol+"://"+host.ip+":"+host.port+host.path// +"?t="+ new Date().getTime();
 			console.log(url);
-			if (req.url === '/'+host.ip.replace(/\./g, '_')) {
+			//Removo os parametros, para poder refazer a requisicao de imagens
+			//Para cameras que nao trabalham com stream
+			reqUrl = req.url.split("?");
+			reqUrl = reqUrl[0];
+			if (reqUrl === '/'+host.ip.replace(/\./g, '_')) {
 				var x = request(url);
 				req.pipe(x);
 				x.pipe(resp);
@@ -156,15 +160,7 @@ function getStream(hosts,node,msg){
 		
 	}
 
-	/*html += 'function updateImage() { '
-    		+' if(newImage.complete) { '
-            +' newImage.src = document.getElementById("img").src; '
-            +' var temp = newImage.src; '
-            +' document.getElementById("img").src = newImage.src; '
-            +' newImage = new Image(); ' 
-            +' newImage.src = temp+"?" + new Date().getTime();'
-			+' } '
-			+' setTimeout(updateImage, 1000);'*/
+	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){src = imgs[_i].src;imgs[_i].src = src + '?t='+ new Date().getTime();}} setInterval(updateImage, 1000);</script>";
 	
 	msg.payload = html;
 	node.send(msg);
