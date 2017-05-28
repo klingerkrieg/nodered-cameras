@@ -1,17 +1,21 @@
 /**
  * Autores:Alan Klinger klingerkrieg@gmail.com
- * 		   Lucas Dantas lulucadantas@gmail.com
+ * 		   Lucas Dantas lucashiagod@gmail.com
  * Plugin do node-red
  */
 var hostsConfig;
 var portsToScan;
 var networksToNmap;
+var urlToServer;
+var portForStream = 1337;
 
 module.exports = function(RED) {
     function CameraNode(config) {
         RED.nodes.createNode(this,config);
         var node = this;
-		var global_msg;
+
+		//console.log(config);
+		//console.log(this);
 		
 		//Carrega as configuuracoes
 		portsToScan = config.searchPorts;
@@ -24,8 +28,18 @@ module.exports = function(RED) {
 		var nmapConfig = config.nmap;
 		
         this.on('input', function(msg) {
-			
-			var fs = require('fs');
+
+			//Salva o log
+			/*var fs = require('fs');
+			var util = require('util');
+			var log_file = fs.createWriteStream('teste.log', {flags : 'w'});
+			var log_stdout = process.stdout;
+			console.log = function(d) { //
+				log_file.write(util.format(d) + '\n');
+				log_stdout.write(util.format(d) + '\n');
+			};*/
+
+			urlToServer = msg.req.headers.host.split(":")[0];
 			
 			paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
 			//caso o usuario opte por usar o nmap
@@ -109,7 +123,7 @@ function getStream(hosts,node,msg){
 	//caso ja tenha algum server aberto ele fecha
 	if (globalContext.get("server") != undefined){
 		globalContext.get("server").shutdown(function() {
-			console.log('Reset server 1337.');
+			console.log('Reset server '+portForStream);
 		});
 	}
 	
@@ -120,13 +134,17 @@ function getStream(hosts,node,msg){
 			host = hosts[i];
 			
 			url = host.protocol+"://"+host.ip+":"+host.port+host.path// +"?t="+ new Date().getTime();
-			console.log(url);
 			//Removo os parametros, para poder refazer a requisicao de imagens
 			//Para cameras que nao trabalham com stream
+			//console.log("req:"+ req.url +" - host:"+ '/'+host.ip.replace(/\./g, '_'));
 			reqUrl = req.url.split("?");
 			reqUrl = reqUrl[0];
 			if (reqUrl === '/'+host.ip.replace(/\./g, '_')) {
+				
+				console.log(url);
 				var x = request(url);
+				//Se tivesse como conseguir o cabecalho aqui seria ideal
+				//Mas o request nao retorna o cabecalho completo
 				req.pipe(x);
 				x.pipe(resp);
 			}
@@ -135,32 +153,34 @@ function getStream(hosts,node,msg){
 
 	server = require('http-shutdown')(server);
 	//escuta a porta
-	server.listen(1337);
+	server.listen(portForStream);
 	//guarda no context
 	globalContext.set("server",server);
-	console.log('listen 1337');
+	console.log('listen '+portForStream);
 	
 
 	html = '<style>.video{ width:320px;height:320px;border:1px solid;margin:5px; }</style>';
 	for (var i = 0; i < hosts.length; i++){
 		host = hosts[i];
-		if (host.type == 'jpeg'){
+		//Videos que foram definidos na configuracao nao sao testados
+		//Todos esses serao do tipo update, melhorar isso depois porque posso ter um que nao necessite ser update
+		if (host.type == 'jpeg' || host.type == null){
 			autoUpdate = 'video update';
 		} else {
 			autoUpdate = 'video';
 		}
 		//quando é via plugin do vlc
 		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
-			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://localhost:1337/'+host.ip.replace(/\./g, '_')+'" />'
+			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+portForStream+'/'+host.ip.replace(/\./g, '_')+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
 			//quando é streaming com png
-			html += '<img class="'+autoUpdate+'" src="http://localhost:1337/'+host.ip.replace(/\./g, '_')+'">';
+			html += '<img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+host.ip.replace(/\./g, '_')+'">';
 		}
 		
 	}
 
-	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){src = imgs[_i].src;imgs[_i].src = src + '?t='+ new Date().getTime();}} setInterval(updateImage, 1000);</script>";
+	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){imgs[_i].src = imgs[_i].src.split('?')[0] + '?t='+ new Date().getTime();console.log(imgs[_i].src);}} setInterval(updateImage, 1000);</script>";
 	
 	msg.payload = html;
 	node.send(msg);
@@ -185,8 +205,6 @@ function filtrarVideos(hosts,paths,node,msg){
 			var options = {
 			host: host.ip,
 			port: host.port,
-			//path: '/video',
-			//path: '/image/jpeg.cgi',
 			path: paths[y],
 			timeout: 1000
 			};
@@ -350,3 +368,5 @@ function getIpRangeNetMask(str) {
   var broadcastaddress = baseAddress.map(function(block, idx) { return block | invertedNetmaskblocks[idx]; });
   return [baseAddress.join('.'), broadcastaddress.join('.')];
 }
+
+
