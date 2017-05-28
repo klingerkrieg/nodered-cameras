@@ -8,6 +8,7 @@ var portsToScan;
 var networksToNmap;
 var urlToServer;
 var portForStream = 1337;
+var portForRTSP = 1338;
 
 module.exports = function(RED) {
     function CameraNode(config) {
@@ -117,6 +118,7 @@ function getStream(hosts,node,msg){
 	var request = require('request');
 	var http = require('http');
 	
+
 	//vai salvar o server no context
 	var globalContext = node.context().global;
 
@@ -132,22 +134,27 @@ function getStream(hosts,node,msg){
 		
 		for (var i = 0; i < hosts.length; i++){
 			host = hosts[i];
+
 			
-			url = host.protocol+"://"+host.ip+":"+host.port+host.path// +"?t="+ new Date().getTime();
+			
+			url = host.protocol+"://"+host.ip+":"+host.port+host.path
 			//Removo os parametros, para poder refazer a requisicao de imagens
 			//Para cameras que nao trabalham com stream
+
 			//console.log("req:"+ req.url +" - host:"+ '/'+host.ip.replace(/\./g, '_'));
 			reqUrl = req.url.split("?");
 			reqUrl = reqUrl[0];
+
 			if (reqUrl === '/'+host.ip.replace(/\./g, '_')) {
-				
 				console.log(url);
+				
 				var x = request(url);
 				//Se tivesse como conseguir o cabecalho aqui seria ideal
 				//Mas o request nao retorna o cabecalho completo
 				req.pipe(x);
 				x.pipe(resp);
 			}
+			
 		}
 	});
 
@@ -158,10 +165,12 @@ function getStream(hosts,node,msg){
 	globalContext.set("server",server);
 	console.log('listen '+portForStream);
 	
+	const exec = require('child_process');
 
 	html = '<style>.video{ width:320px;height:320px;border:1px solid;margin:5px; }</style>';
 	for (var i = 0; i < hosts.length; i++){
 		host = hosts[i];
+		reqUrl = host.ip.replace(/\./g, '_');
 		//Videos que foram definidos na configuracao nao sao testados
 		//Todos esses serao do tipo update, melhorar isso depois porque posso ter um que nao necessite ser update
 		if (host.type == 'jpeg' || host.type == null){
@@ -171,15 +180,39 @@ function getStream(hosts,node,msg){
 		}
 		//quando é via plugin do vlc
 		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
-			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+portForStream+'/'+host.ip.replace(/\./g, '_')+'" />'
+			if (host.protocol == 'rtsp'){
+				
+				console.log("matando")
+				//mata todos os processos do vlc
+				/*var cmd = exec('Taskkill /IM vlc.exe /F', function(error, stdout, stderr) {
+					console.log("ok");
+					//cria o processo do vlc
+					cmd = 'vlc -I rc -I http rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov :sout=#transcode{vcodec=h264,scale=acodec=mpga,ab=128,channels=2,samplerate=44100}:http{mux=ffmpeg{mux=flv},dst=:'+portForRTSP+'/'+reqUrl+'} :sout-keep'
+					console.log(cmd)
+					cmd = exec(cmd);
+				});*/
+
+				list = exec.execSync('tasklist');
+				if (list.indexOf('vlc') > -1){
+					exec.execSync('taskkill /IM vlc.exe /F');
+				}
+				cmd = 'vlc -I rc -I http rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov :sout=#transcode{vcodec=h264,scale=acodec=mpga,ab=128,channels=2,samplerate=44100}:http{mux=ffmpeg{mux=flv},dst=:'+portForRTSP+'/'+reqUrl+'} :sout-keep'
+				console.log(cmd)
+				cmd = exec.exec(cmd);
+				
+				port = portForRTSP;
+			} else {
+				port = portForStream;
+			}
+			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+port+'/'+reqUrl+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
 			//quando é streaming com png
-			html += '<img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+host.ip.replace(/\./g, '_')+'">';
+			html += '<img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'">';
 		}
 		
 	}
-
+	//Script para atualizar as cameras que sao do tipo jpeg sem stream
 	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){imgs[_i].src = imgs[_i].src.split('?')[0] + '?t='+ new Date().getTime();console.log(imgs[_i].src);}} setInterval(updateImage, 1000);</script>";
 	
 	msg.payload = html;
