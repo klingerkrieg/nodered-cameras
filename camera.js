@@ -9,11 +9,15 @@ var networksToNmap;
 var urlToServer;
 var portForStream = 1337;
 var portForRTSP = 1338;
+var node;
+var msg;
+
+var fs = require('fs');
 
 module.exports = function(RED) {
     function CameraNode(config) {
         RED.nodes.createNode(this,config);
-        var node = this;
+        node = this;
 
 		//console.log(config);
 		//console.log(this);
@@ -28,8 +32,9 @@ module.exports = function(RED) {
 		hostsConfig = config.hosts.split("\n");
 		var nmapConfig = config.nmap;
 		
-        this.on('input', function(msg) {
+        this.on('input', function(msgParam) {
 
+			msg = msgParam;
 			//Salva o log
 			/*var fs = require('fs');
 			var util = require('util');
@@ -45,9 +50,9 @@ module.exports = function(RED) {
 			paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
 			//caso o usuario opte por usar o nmap
 			if (nmapConfig){
-				scan(portsToScan,paths,node,msg);
+				scan(portsToScan,paths);
 			} else {
-				getStream([],node,msg);
+				getStream([]);
 			}
 			
 			
@@ -100,7 +105,7 @@ function hostsConfigToHosts(hostConfig,hosts){
 /**
  * Inicia o stream de videos
  */
-function getStream(hosts,node,msg){
+function getStream(hosts){
 	hosts = hostsConfigToHosts(hostsConfig,hosts);
 	
 	//hosts = [{ip:'192.168.0.14',port:'8080'},{ip:'192.168.0.12',port:'8081'},{ip:'192.168.0.23',port:'8080'}];
@@ -153,6 +158,8 @@ function getStream(hosts,node,msg){
 				//Mas o request nao retorna o cabecalho completo
 				req.pipe(x);
 				x.pipe(resp);
+
+				
 			}
 			
 		}
@@ -224,29 +231,31 @@ function getStream(hosts,node,msg){
 /**
  * Verifica para cada host se ele possui alguma url com video
  */
-function filtrarVideos(hosts,paths,node,msg){
-	
+function filtrarVideos(hosts,paths){
 	var hosts_filtrados = [];
 	
 	var completes = 0;
 	var httpTest = require('http');
 	for (var i = 0; i < hosts.length; i++){
 		host = hosts[i];
-		
+		console.log(host);
 		for (var y = 0; y < paths.length; y++){
 		
+			console.log(host.port);
 			var options = {
-			host: host.ip,
-			port: host.port,
-			path: paths[y],
-			timeout: 1000
+				host: host.ip,
+				port: host.port,
+				path: paths[y],
+				timeout: 1000
 			};
 
 			httpTest.get(options, function(resp){
+				
 				console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
 				
 				if (resp.statusCode == 200){
 					console.log(resp.headers);
+					
 					host_part = resp.req._headers.host.split(":");
 					if (host_part[1] == undefined){//quando é na porta 80 ele nao coloca porta nenhuma
 						host_part[1] = 80;
@@ -292,10 +301,10 @@ function filtrarVideos(hosts,paths,node,msg){
 /**
  * Procura hosts na rede com o nmap
  */
-function scan(portas,paths,node,msg){
-	var nmap = require('node-nmap');
+function scan(portas,paths){
 	
-	var hosts = [];
+	
+	
 	var ips = "";
 
 	
@@ -333,6 +342,9 @@ function scan(portas,paths,node,msg){
 		ips = networksToNmap;
 	}
 	console.log("["+ips+" "+portsToScan+"]");
+
+	/* removida a necessidade do node-nmap porque apresentou erros
+	var nmap = require('node-nmap');
 	var nmapscan = new nmap.nodenmap.NmapScan (ips,'-p '+portsToScan);
  
 	nmapscan.on('complete', function(data){
@@ -358,8 +370,32 @@ function scan(portas,paths,node,msg){
 		console.log("nmap-error");
 	  	console.log(error);
 	});
-	nmapscan.startScan();
+	nmapscan.startScan();*/
+
+	nmapSync = require('./nmap').nmapSync;
+	data = nmapSync(ips,portsToScan);
+	console.log(data);
+	nmapComplete(data);
 	
+}
+
+
+function nmapComplete(data){
+	var hosts = [];
+	for(var i = 0; i < data.length; i++){
+		
+		if (data[i].openPorts != null){
+			
+			for(var y = 0; y < data[i].openPorts.length; y++){
+				if (data[i].openPorts[y] != undefined){
+					hosts.push({'ip':data[i].ip, 'port':data[i].openPorts[y].port});
+				}
+			}
+		}
+		
+	}
+	
+	filtrarVideos(hosts,paths);
 }
 
 /**
