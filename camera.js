@@ -14,14 +14,15 @@ var msg;
 
 var fs = require('fs');
 
+//funcoes de ip
+var ipv4 = require('./ipv4');
+
+
 module.exports = function(RED) {
     function CameraNode(config) {
         RED.nodes.createNode(this,config);
         node = this;
 
-		//console.log(config);
-		//console.log(this);
-		
 		//Carrega as configuuracoes
 		portsToScan = config.searchPorts;
 		if (portsToScan == undefined || portsToScan == ""){
@@ -47,7 +48,28 @@ module.exports = function(RED) {
 
 			urlToServer = msg.req.headers.host.split(":")[0];
 			
+			//paths da url onde as cameras operam
 			paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
+
+			//verifica dependencias quanto ao nmap ou ffmpeg
+			var deps = require('./dependencias');
+			var dep = deps.check();
+			msgParam.payload = "";
+			checkFail = false;
+			if (dep.nmap == false && nmapConfig){
+				msgParam.payload += "Configure no path ou instale o nmap<br/>apt-get install nmap<br/>";
+				checkFail = true;
+			}
+			if (dep.ffmpeg == false){
+				msgParam.payload += "Configure no path ou instale o ffmpeg<br/><ul><li>sudo add-apt-repository ppa:mc3man/trusty-media</li><li>sudo apt-get update</li><li>sudo apt-get install ffmpeg gstreamer0.10-ffmpeg";
+				checkFail = true;
+			}
+			if (checkFail){
+				node.send(msgParam);
+			}
+
+
+
 			//caso o usuario opte por usar o nmap
 			if (nmapConfig){
 				scan(portsToScan,paths);
@@ -108,9 +130,6 @@ function hostsConfigToHosts(hostConfig,hosts){
 function getStream(hosts){
 	hosts = hostsConfigToHosts(hostsConfig,hosts);
 	
-	//hosts = [{ip:'192.168.0.14',port:'8080'},{ip:'192.168.0.12',port:'8081'},{ip:'192.168.0.23',port:'8080'}];
-	//hosts = [{ip:'192.168.0.14',port:'80'}]
-	//hosts
 	/*hosts = [{ip:'192.168.0.11',
 			port:8080,
 			path:"/mjpeg",
@@ -200,7 +219,7 @@ function getStream(hosts){
 		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
 			if (host.protocol == 'rtsp'){
 				
-				console.log("matando")
+				//console.log("matando")
 				//mata todos os processos do vlc
 				/*var cmd = exec('Taskkill /IM vlc.exe /F', function(error, stdout, stderr) {
 					console.log("ok");
@@ -340,8 +359,8 @@ function scan(portas,paths){
 					//console.log(ifname + ':' + alias, iface.address);
 				} else {
 					// this interface has only one ipv4 adress
-					cidr = subnetToCIDR(iface.netmask);
-					ips += getIpRangeNetMask(iface.address+"/"+cidr)[0]+"/"+cidr+" ";
+					cidr = ipv4.subnetToCIDR(iface.netmask);
+					ips += ipv4.getIpRangeNetMask(iface.address+"/"+cidr)[0]+"/"+cidr+" ";
 				}
 				++alias;
 			});
@@ -351,35 +370,6 @@ function scan(portas,paths){
 		ips = networksToNmap;
 	}
 	console.log("["+ips+" "+portsToScan+"]");
-
-	/* removida a necessidade do node-nmap porque apresentou erros
-	var nmap = require('node-nmap');
-	var nmapscan = new nmap.nodenmap.NmapScan (ips,'-p '+portsToScan);
- 
-	nmapscan.on('complete', function(data){
-		for(var i = 0; i < data.length; i++){
-		  
-		  if (data[i].openPorts != null){
-			  
-			  for(var y = 0; y < data[i].openPorts.length; y++){
-				
-				if (data[i].openPorts[y] != undefined){
-					hosts.push({'ip':data[i].ip, 'port':data[i].openPorts[y].port});
-				}
-			  }
-		  }
-		  
-		}
-		
-		hosts = filtrarVideos(hosts,paths,node,msg);
-		
-	});
-	 
-	nmapscan.on('error', function(error){
-		console.log("nmap-error");
-	  	console.log(error);
-	});
-	nmapscan.startScan();*/
 
 	nmapSync = require('./nmap').nmapSync;
 	data = nmapSync(ips,portsToScan);
@@ -417,34 +407,6 @@ function hostExistsIn(search,list){
 		}
 	}
 	return false;
-}
-
-function subnetToCIDR(mask){
-    var maskNodes = mask.match(/(\d+)/g);
-    var cidr = 0;
-    for(var i in maskNodes) {
-        cidr += (((maskNodes[i] >>> 0).toString(2)).match(/1/g) || []).length;
-    }
-    return cidr;
-}
-
-function getIpRangeNetMask(str) {
-  var part = str.split("/"); // part[0] = base address, part[1] = netmask
-  var ipaddress = part[0].split('.');
-  var netmaskblocks = ["0","0","0","0"];
-  if(!/\d+\.\d+\.\d+\.\d+/.test(part[1])) {
-    // part[1] has to be between 0 and 32
-    netmaskblocks = ("1".repeat(parseInt(part[1], 10)) + "0".repeat(32-parseInt(part[1], 10))).match(/.{1,8}/g);
-    netmaskblocks = netmaskblocks.map(function(el) { return parseInt(el, 2); });
-  } else {
-    // xxx.xxx.xxx.xxx
-    netmaskblocks = part[1].split('.').map(function(el) { return parseInt(el, 10) });
-  }
-  // invert for creating broadcast address (highest address)
-  var invertedNetmaskblocks = netmaskblocks.map(function(el) { return el ^ 255; });
-  var baseAddress = ipaddress.map(function(block, idx) { return block & netmaskblocks[idx]; });
-  var broadcastaddress = baseAddress.map(function(block, idx) { return block | invertedNetmaskblocks[idx]; });
-  return [baseAddress.join('.'), broadcastaddress.join('.')];
 }
 
 

@@ -4,10 +4,10 @@
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
-        searchPorts: {value:"80,8080,8081"},
-        hosts : {value:""},
-        nmap : {value:true, type:"boolean"},
-        networksToNmap : {value:""}
+            searchPorts: {value:"80,8080,8081"},
+            hosts : {value:""},
+            nmap : {value:true, type:"boolean"},
+            networksToNmap : {value:""}
         },
         inputs:1,
         outputs:1,
@@ -17,8 +17,23 @@
         }
     });
 </script>
-
+<style>
+    .green{
+        background-color: green;
+        color:white;
+    }
+    .orange{
+        background-color: orangered;
+        color:white;
+    }
+</style>
 <script type="text/x-red" data-template-name="camera">
+
+    <div class="form-row">
+        <label id="nmap">nmap</label>
+        <label id="nmap">ffmpeg</label>
+    </div>
+
     <div class="form-row">
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -42,9 +57,8 @@
         <textarea id="node-input-hosts"></textarea>
     </div>
     <div class="form-tips"><b>Configure endereços de câmeras, exemplo:</b> http://192.168.0.2:80/video</div>
-</script>
 
-<script type="text/x-red" data-help-name="camera">
+
     <p>Um nó que procura câmeras na rede e distribui o streaming.<br/>
     Requer:
     <ul>
