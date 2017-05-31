@@ -129,9 +129,8 @@ function getStream(hosts){
 
 	//caso ja tenha algum server aberto ele fecha
 	if (globalContext.get("server") != undefined){
-		globalContext.get("server").shutdown(function() {
-			console.log('Reset server '+portForStream);
-		});
+		globalContext.get("server").close();
+		console.log("Server off");
 	}
 
 	const exec = require('child_process');
@@ -139,6 +138,7 @@ function getStream(hosts){
 	//Captura
 	var frame = 0;
 	setInterval(function(){
+		//criar pasta de captura
 		//salvar todas as cameras possiveis
 		cmd = "ffmpeg -i http://10.0.0.106:8080/video -vframes 1 -updatefirst 1 captures/img"+frame+".jpg -y";
 		exec.exec(cmd);
@@ -177,12 +177,11 @@ function getStream(hosts){
 		}
 	});
 
-	server = require('http-shutdown')(server);
 	//escuta a porta
 	server.listen(portForStream);
 	//guarda no context
 	globalContext.set("server",server);
-	console.log('listen '+portForStream);
+	console.log("listen "+portForStream+" server on");
 	
 	
 
@@ -250,10 +249,9 @@ function filtrarVideos(hosts,paths){
 	var httpTest = require('http');
 	for (var i = 0; i < hosts.length; i++){
 		host = hosts[i];
-		console.log(host);
+		
 		for (var y = 0; y < paths.length; y++){
 		
-			console.log(host.port);
 			var options = {
 				host: host.ip,
 				port: host.port,
@@ -266,7 +264,6 @@ function filtrarVideos(hosts,paths){
 				console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
 				
 				if (resp.statusCode == 200){
-					console.log(resp.headers);
 					
 					host_part = resp.req._headers.host.split(":");
 					if (host_part[1] == undefined){//quando é na porta 80 ele nao coloca porta nenhuma
