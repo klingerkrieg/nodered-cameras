@@ -133,6 +133,19 @@ function getStream(hosts){
 			console.log('Reset server '+portForStream);
 		});
 	}
+
+	const exec = require('child_process');
+
+	//Captura
+	var frame = 0;
+	setInterval(function(){
+		//salvar todas as cameras possiveis
+		cmd = "ffmpeg -i http://10.0.0.106:8080/video -vframes 1 -updatefirst 1 captures/img"+frame+".jpg -y";
+		exec.exec(cmd);
+		frame++;
+		//verificar se esta conseguindo salvar, se nao conseguir mais ele deve parar de tentar
+	},2000);
+	
 	
 	//abre um novo server
 	server = http.createServer(function (req, resp) {
@@ -158,7 +171,6 @@ function getStream(hosts){
 				//Mas o request nao retorna o cabecalho completo
 				req.pipe(x);
 				x.pipe(resp);
-
 				
 			}
 			
@@ -172,7 +184,7 @@ function getStream(hosts){
 	globalContext.set("server",server);
 	console.log('listen '+portForStream);
 	
-	const exec = require('child_process');
+	
 
 	html = '<style>.video{ width:320px;height:320px;border:1px solid;margin:5px; }</style>';
 	for (var i = 0; i < hosts.length; i++){
