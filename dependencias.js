@@ -4,7 +4,11 @@ const exec = require('child_process');
 
 
 function verificaNmap(){
-	stdout = exec.execSync("nmap -h").toString();
+    try {
+	    stdout = exec.execSync("nmap -h").toString();
+    } catch (err) {
+        stdout = "falha";
+    }
     if (stdout.toLowerCase().indexOf("nmap") == 0){
         return true;
     } else {
@@ -13,7 +17,11 @@ function verificaNmap(){
 }
 
 function verificaFFMPEG(){
-	stdout = exec.execSync("ffmpeg -h").toString();
+    try {
+	    stdout = exec.execSync("ffmpeg -h").toString();
+    } catch (err) {
+        stdout = "falha";
+    }
     if (stdout.toLowerCase().indexOf("usage: ffmpeg") > 0){
         return true;
     } else {

@@ -33,6 +33,6 @@ module.exports = {
   },
 
   getIpRangeNetMask: function(str) {
-    getIpRangeNetMask(str);
+    return getIpRangeNetMask(str);
   }
 }
