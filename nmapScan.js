@@ -4,8 +4,8 @@ module.exports = {
     return nmapSync(ips,ports);
   },
 
-  nmapAsync: function(ips,ports,call) {
-    nmapAsync(ips,ports,call);
+  nmap: function(ips,ports,call) {
+    nmap(ips,ports,call);
   }
 }
 
@@ -14,32 +14,31 @@ function nmapSync(ips,ports,call){
     const exec = require('child_process');
     
     nmapCmd = "nmap "+ips+" -p "+ports;
+    
     var obj = exec.execSync(nmapCmd);
     stdout = obj.toString();
-    
     return readResponse(stdout);
 }
 
-function nmapAsync(ips,ports,call){
+function nmap(ips,ports,call){
     const exec = require('child_process');
     
     nmapCmd = "nmap "+ips+" -p "+ports;
     var cmd = exec.exec(nmapCmd, function(error, stdout, stderr) {
-        readResponse(stdout);
-
-        call(data);
+        resp = readResponse(stdout);
+        call(resp);
     });
 }
 
 
-function readResponse(){
+function readResponse(stdout){
     //Removo a primeira linha
     stdout = stdout.trim()
     stdout = stdout.trim().substr(stdout.indexOf("\n")).trim();
     //Separo por hosts
+    stdout = stdout.replace(/\r/g, '');
     var hosts = stdout.split("\n\n");
     //Descarto a ultima linha
-
     var data = [];
     var ipv4 = /[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/i
     var portOpen = /[0-9]{1,8}\/tcp[\s]{1,5}open/ig
@@ -65,12 +64,8 @@ function readResponse(){
 }
 
 
-/*
-var ips = "10.0.0.0/24";
+/*var ips = "192.168.0.0/24";
 var ports = "80,8080,8081";
 
-
-
-nmap(ips,ports,function(data){
-    console.log(data);
-});*/
+data = nmapSync(ips,ports);
+console.log(data);*/

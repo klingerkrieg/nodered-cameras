@@ -48,7 +48,7 @@ function scan(portsToScan,paths,networksToNmap){
 	}
 	console.log("["+ips+" "+portsToScan+"]");
 
-	nmapSync = require('./nmap').nmapSync;
+	nmapSync = require('./nmapScan').nmapSync;
 	data = nmapSync(ips,portsToScan);
 	console.log(data);
 	return nmapComplete(data);

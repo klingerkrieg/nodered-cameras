@@ -104,15 +104,34 @@ function startStream(hosts){
 	const exec = require('child_process');
 
 	//Captura
-	var frame = 0;
+	//cria pasta
+	if (!fs.existsSync("./captures")){
+		fs.mkdirSync("./captures");
+	}
+	//Cria processos para salvar as cameras
+	var totalSaved = hosts.length;
 	setInterval(function(){
-		//criar pasta de captura
-		//salvar todas as cameras possiveis
-		cmd = "ffmpeg -i http://10.0.0.106:8080/video -vframes 1 -updatefirst 1 captures/img"+frame+".jpg -y";
-		exec.exec(cmd);
-		frame++;
+		//Controle para só salvar o proximo frame se todos os anteriores tiverem sido salvos
+		//Para evitar muitos processos no server
+		if (totalSaved < hosts.length){
+			return;
+		}
+		totalSaved = 0;
+		for (var i = 0; i < hosts.length; i++){
+			host = hosts[i];
+			path = "captures/"+host.ip.replace(/\./g, '_')+"/";
+			if (!fs.existsSync(path)){
+				fs.mkdirSync(path);
+			}
+			url = host.protocol+"://"+host.ip+":"+host.port+host.path
+			//salvar todas as cameras possiveis
+			cmd = "ffmpeg -i "+url+" -vframes 1 -updatefirst 1 "+path+ (new Date().getTime()) +".jpg -y";
+			exec.exec(cmd, function(error, stdout, stderr) {
+				totalSaved++;
+			});
+		}
 		//verificar se esta conseguindo salvar, se nao conseguir mais ele deve parar de tentar
-	},2000);
+	},3000);
 	
 	
 	//abre um novo server
