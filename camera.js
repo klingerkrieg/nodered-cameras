@@ -100,6 +100,14 @@ function startStream(hosts){
 
 	console.log("Hosts encontrados...");
 	console.log(hosts);
+
+
+	//Adiciona um codigo ao video para substituir o ip na url
+	streamCode = 1;
+	for (var i = 0; i < hosts.length; i++){
+		hosts[i].urlCode = streamCode++;
+	}
+
 	
 	var request = require('request');
 	var http = require('http');
@@ -147,20 +155,19 @@ function startStream(hosts){
 	//abre um novo server
 	server = http.createServer(function (req, resp) {
 		
+		
 		for (var i = 0; i < hosts.length; i++){
 			host = hosts[i];
 
-			
-			
 			url = host.protocol+"://"+host.ip+":"+host.port+host.path
 			//Removo os parametros, para poder refazer a requisicao de imagens
 			//Para cameras que nao trabalham com stream
 
-			//console.log("req:"+ req.url +" - host:"+ '/'+host.ip.replace(/\./g, '_'));
+			
 			reqUrl = req.url.split("?");
 			reqUrl = reqUrl[0];
-
-			if (reqUrl === '/'+host.ip.replace(/\./g, '_')) {
+			//console.log("req:"+ reqUrl +" - host:"+ host.urlCode);
+			if (reqUrl === '/'+host.urlCode){//'/'+host.ip.replace(/\./g, '_')) {
 				console.log(url);
 				
 				var x = request(url);
@@ -184,8 +191,9 @@ function startStream(hosts){
 
 	html = '<style>.video{ width:320px;height:320px;border:1px solid;margin:5px; }</style>';
 	for (var i = 0; i < hosts.length; i++){
+		
 		host = hosts[i];
-		reqUrl = host.ip.replace(/\./g, '_');
+		reqUrl = host.urlCode;
 		//Videos que foram definidos na configuracao nao sao testados
 		//Todos esses serao do tipo update, melhorar isso depois porque posso ter um que nao necessite ser update
 		if (host.type == 'jpeg' || host.type == null){
