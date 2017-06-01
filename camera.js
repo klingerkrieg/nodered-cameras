@@ -14,7 +14,7 @@ var msg;
 //vai salvar o server e ultimo scaneamento no context
 var globalContext;
 //paths da url onde as cameras operam
-var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
+var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg","/screen_stream.mjpeg","/videofeed","/mjpegfeed?640x480","/cam/1/frame.jpg"];
 
 var fs = require('fs');
 var scan = require('./scan');
@@ -30,7 +30,7 @@ module.exports = function(RED) {
 		//Carrega as configuuracoes
 		portsToScan = config.searchPorts;
 		if (portsToScan == undefined || portsToScan == ""){
-			portsToScan = '80,8080,8081';
+			portsToScan = '80,8080,8081,4747';
 		}
 		networksToNmap = config.networksToNmap;
 		
@@ -203,7 +203,7 @@ function startStream(hosts){
 		}
 		//quando é via plugin do vlc
 		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
-			if (host.protocol == 'rtsp'){
+			/*if (host.protocol == 'rtsp'){
 				
 				//console.log("matando")
 				//mata todos os processos do vlc
@@ -214,7 +214,7 @@ function startStream(hosts){
 					console.log(cmd)
 					cmd = exec(cmd);
 				});*/
-
+/*
 				list = exec.execSync('tasklist');
 				if (list.indexOf('vlc') > -1){
 					exec.execSync('taskkill /IM vlc.exe /F');
@@ -226,7 +226,7 @@ function startStream(hosts){
 				port = portForRTSP;
 			} else {
 				port = portForStream;
-			}
+			}*/
 			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+port+'/'+reqUrl+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {

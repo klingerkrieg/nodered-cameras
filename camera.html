@@ -4,7 +4,7 @@
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
-            searchPorts: {value:"80,8080,8081"},
+            searchPorts: {value:""},
             hosts : {value:""},
             nmap : {value:true, type:"boolean"},
             networksToNmap : {value:""}
@@ -17,16 +17,6 @@
         }
     });
 </script>
-<style>
-    .green{
-        background-color: green;
-        color:white;
-    }
-    .orange{
-        background-color: orangered;
-        color:white;
-    }
-</style>
 <script type="text/x-red" data-template-name="camera">
 
     <div class="form-row">
@@ -42,6 +32,7 @@
         <label for="node-input-searchPorts"><i class="icon-tag"></i> Ports</label>
         <input type="text" id="node-input-searchPorts">
     </div>
+    <div class="form-tips"><b>Configure portas separadas por ","<br/>default:</b>80,8080,8081,4747</div>
     <div class="form-row">
         <label for="node-input-nmap"><i class="icon-tag"></i> Nmap</label>
         <input type="checkbox" id="node-input-nmap">
@@ -51,16 +42,40 @@
         <label for="node-input-networksToNmap"><i class="icon-tag"></i> Networks</label>
         <input type="text" id="node-input-networksToNmap">
     </div>
-    <div class="form-tips">Caso necessário, configure uma ou mais networks para o nmap: 192.168.0.0/24 ou ip fixo separador por espaço 192.168.0.10</div>
+    <div class="form-tips">Caso necessário, configure uma ou mais networks para o nmap: 192.168.0.0/24<br/> Ou ip fixo separador por espaço 192.168.0.10 192.168.0.11</div>
     <div class="form-row">
         <label for="node-input-hosts"><i class="icon-tag"></i> Hosts</label>
         <textarea id="node-input-hosts"></textarea>
     </div>
-    <div class="form-tips"><b>Configure endereços de câmeras, exemplo:</b> http://192.168.0.2:80/video</div>
+    <div class="form-tips"><b>Configure endereços de câmeras com path, exemplo:</b> http://192.168.0.2:80/video (Utilizado para dispositivos não compatíveis por padrão)</div>
+    <br/>
+    <div class="form-tips">
+        Aplicativos compatíveis:<br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.pas.webcam">
+            <img src="./icons/ipwebcam.webp"> IP Webcam</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.BenLin.BLIPCamera.Free">
+            <img src="./icons/blipcamera.webp"> BL IP-Camera Free</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.miv.rtspcamera">
+            <img src="./icons/rtspcamera.webp"> RTSP Camera Server</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.dev47apps.droidcam">
+            <img src="./icons/droidcam.webp"> DroidCam Wireless Webcam</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.dipbox.eye">
+            <img src="./icons/phoneeye.webp"> Phone eye - Web camera</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=info.dvkr.screenstream">
+            <img src="./icons/screenstream.webp"> Screen Stream over HTTP</a><br/>
+        <a target="_blank" href="https://play.google.com/store/apps/details?id=com.ipphonecamera">
+            <img src="./icons/iphonecamera.webp"> IP Phone Camera</a><br/>
+        <a target="_blank" href="https://dlink.com.br/produto/cameras-ip/dcs-932l">
+            DCS-932l</a><br/>
+            
+    </div>
 
     Requer:
     <ul>
+        <li><a target="_blank" href="https://nmap.org/download.html">Nmap</a></li>
         <li>apt-get install nmap</li>
+
+        <li><a target="_blank" href="https://ffmpeg.org/download.html">FFMPEG</a></li>
         <li>sudo add-apt-repository ppa:mc3man/trusty-media</li>
         <li>sudo apt-get update</li>
         <li>sudo apt-get install ffmpeg gstreamer0.10-ffmpeg </li>
