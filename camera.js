@@ -11,6 +11,8 @@ var portForStream = 1337;
 var portForRTSP = 1338;
 var node;
 var msg;
+//vai salvar o server e ultimo scaneamento no context
+var globalContext;
 //paths da url onde as cameras operam
 var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg"];
 
@@ -22,6 +24,8 @@ module.exports = function(RED) {
     function CameraNode(config) {
         RED.nodes.createNode(this,config);
         node = this;
+
+		globalContext = node.context().global;
 
 		//Carrega as configuuracoes
 		portsToScan = config.searchPorts;
@@ -36,6 +40,8 @@ module.exports = function(RED) {
         this.on('input', function(msgParam) {
 			//salva o obj msg
 			msg = msgParam;
+
+			
 
 			//salva o caminho da url para acesso do server
 			urlToServer = msg.req.headers.host.split(":")[0];
@@ -57,9 +63,16 @@ module.exports = function(RED) {
 				node.send(msgParam);
 			}
 
+
 			//caso o usuario opte por usar o nmap
 			if (nmapConfig){
-				hosts = scan.scan(portsToScan,paths,networksToNmap);
+				if (msg.req.query != undefined && msg.req.query.scan != undefined && msg.req.query.scan == 1 || globalContext.get("hosts") == undefined){
+					hosts = scan.scan(portsToScan,paths,networksToNmap);
+					globalContext.set("hosts",hosts);
+				} else {
+					hosts = globalContext.get("hosts");
+				}
+				
 				filtrarVideos(hosts);
 			} else {//caso opte por nao usar
 				startStream([]);
@@ -91,9 +104,6 @@ function startStream(hosts){
 	var request = require('request');
 	var http = require('http');
 	
-
-	//vai salvar o server no context
-	var globalContext = node.context().global;
 
 	//caso ja tenha algum server aberto ele fecha
 	if (globalContext.get("server") != undefined){
@@ -221,6 +231,7 @@ function startStream(hosts){
 	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){imgs[_i].src = imgs[_i].src.split('?')[0] + '?t='+ new Date().getTime();console.log(imgs[_i].src);}} setInterval(updateImage, 1000);</script>";
 	
 	msg.payload = html;
+	msg.refresh = "<a href='?scan=1'>refresh</a>";
 	node.send(msg);
 	
 	

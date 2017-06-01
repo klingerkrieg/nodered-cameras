@@ -18,7 +18,7 @@ function verificaNmap(){
 
 function verificaFFMPEG(){
     try {
-	    stdout = exec.execSync("ffmpeg -h").toString();
+	    stdout = exec.execSync("ffmpeg -h", {stdio:'pipe'}).toString();
     } catch (err) {
         stdout = "falha";
     }
@@ -42,3 +42,4 @@ module.exports = {
   check: function () {
     return check();
 }};
+
