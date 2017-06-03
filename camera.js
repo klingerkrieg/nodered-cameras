@@ -18,6 +18,7 @@ var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg","/screen_stream.mj
 
 var fs = require('fs');
 var scan = require('./scan');
+var nmapScan = require('./nmapScan');
 
 
 module.exports = function(RED) {
@@ -26,6 +27,7 @@ module.exports = function(RED) {
         node = this;
 
 		globalContext = node.context().global;
+
 
 		//Carrega as configuuracoes
 		portsToScan = config.searchPorts;
@@ -62,18 +64,32 @@ module.exports = function(RED) {
 			if (checkFail){
 				node.send(msgParam);
 			}
-
+			
+			//Opcao para usar ou nao o nmap (caso desative usa o scan do http que aparentemente esta mais rapido, mas precisa de testes)
+			useNmapScan = false;
+			//Usar ou nao escaneamento de rede (desativa totalmente)
+			useScan = true;
 
 			//caso o usuario opte por usar o nmap
-			if (nmapConfig){
+			if (useScan){
 				if (msg.req.query != undefined && msg.req.query.scan != undefined && msg.req.query.scan == 1 || globalContext.get("hosts") == undefined){
-					hosts = scan.scan(portsToScan,paths,networksToNmap);
-					globalContext.set("hosts",hosts);
+
+					if (useNmapScan){
+						console.log(">>>>USE NMAP SCAN<<<<");
+						hosts = scan.scan(portsToScan,paths,networksToNmap);
+						globalContext.set("hosts",hosts);
+						hosts = filtrarVideos(hosts);
+						startStream(hosts);
+					} else {
+						console.log(">>>>USE HTTP SCAN<<<<");
+						nmapScan.httpScan(networksToNmap,portsToScan,paths,scanCallBack);
+					}
+					
 				} else {
+					console.log("Use last scan<<");
 					hosts = globalContext.get("hosts");
+					startStream(hosts);
 				}
-				
-				filtrarVideos(hosts);
 			} else {//caso opte por nao usar
 				startStream([]);
 			}
@@ -82,6 +98,11 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType("camera",CameraNode);
+}
+
+function scanCallBack(hosts){
+	globalContext.set("hosts",hosts);
+	startStream(hosts);
 }
 
 
@@ -203,7 +224,7 @@ function startStream(hosts){
 		}
 		//quando é via plugin do vlc
 		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
-			/*if (host.protocol == 'rtsp'){
+			if (host.protocol == 'rtsp'){
 				
 				//console.log("matando")
 				//mata todos os processos do vlc
@@ -214,7 +235,7 @@ function startStream(hosts){
 					console.log(cmd)
 					cmd = exec(cmd);
 				});*/
-/*
+
 				list = exec.execSync('tasklist');
 				if (list.indexOf('vlc') > -1){
 					exec.execSync('taskkill /IM vlc.exe /F');
@@ -226,7 +247,7 @@ function startStream(hosts){
 				port = portForRTSP;
 			} else {
 				port = portForStream;
-			}*/
+			}
 			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+port+'/'+reqUrl+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
