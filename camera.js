@@ -18,7 +18,7 @@ var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg","/screen_stream.mj
 
 var fs = require('fs');
 var scan = require('./scan');
-var nmapScan = require('./nmapScan');
+var httpScan = require('./httpScan').httpScan;
 
 
 module.exports = function(RED) {
@@ -82,7 +82,7 @@ module.exports = function(RED) {
 						startStream(hosts);
 					} else {
 						console.log(">>>>USE HTTP SCAN<<<<");
-						nmapScan.httpScan(networksToNmap,portsToScan,paths,scanCallBack);
+						httpScan(networksToNmap,portsToScan,paths,scanCallBack);
 					}
 					
 				} else {

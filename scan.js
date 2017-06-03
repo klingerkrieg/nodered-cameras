@@ -7,11 +7,8 @@ var ipv4 = require('./ipv4');
  */
 function scan(portsToScan,paths,networksToNmap){
 	
-	
-	
 	var ips = "";
 
-	
 	if (networksToNmap == undefined || networksToNmap == ""){
 		//Vasculha todas as interfaces de internet
 		var os = require('os');
@@ -131,15 +128,9 @@ function hostExistsIn(search,list){
 
 
 module.exports = {
-  scan: function (portas,paths,networksToNmap) {
-    return scan(portas,paths,networksToNmap);
-  },
+  scan: scan,
 
-  hostsConfigToHosts: function (hostConfig,hosts) {
-    return hostsConfigToHosts(hostConfig,hosts);
-  },
+  hostsConfigToHosts: hostsConfigToHosts,
 
-  hostExistsIn: function(search,list) {
-    return hostExistsIn(search,list);
-  }
+  hostExistsIn: hostExistsIn
 }

@@ -28,11 +28,7 @@ function getIpRangeNetMask(str) {
 }
 
 module.exports = {
-  subnetToCIDR: function (mask) {
-    return subnetToCIDR(mask);
-  },
+  subnetToCIDR: subnetToCIDR,
 
-  getIpRangeNetMask: function(str) {
-    return getIpRangeNetMask(str);
-  }
+  getIpRangeNetMask: getIpRangeNetMask
 }

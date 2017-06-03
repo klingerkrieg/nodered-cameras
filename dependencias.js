@@ -39,7 +39,6 @@ function check(){
 
 
 module.exports = {
-  check: function () {
-    return check();
-}};
+  check: check
+};
 
