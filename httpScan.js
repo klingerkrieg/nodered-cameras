@@ -28,12 +28,13 @@ function httpScan(ips,ports,paths,callBack){
                     port: ports[x],
                     path: paths[y]
                 };
+                
 
                 httpTest.get(options, function(resp){
                     
                     if (resp.statusCode == 200){
 
-                        console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
+                        console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);    
                         
                         host_part = resp.req._headers.host.split(":");
                         if (host_part[1] == undefined){//quando é na porta 80 ele nao coloca porta nenhuma
@@ -55,7 +56,7 @@ function httpScan(ips,ports,paths,callBack){
                 }).on("error", function(e,resp){
                     completes++;
                     //console.log("Got error: " + e.message);
-                }).setTimeout(2000,function(){
+                }).setTimeout(3000,function(){
                     completes++;
                     this.abort();
                     //console.log("Timeout");
@@ -120,11 +121,12 @@ function httpHostsConstruct(ipStr){
     return list;
 }
 
-
-/*var ips = "192.168.0.0/24";
+/*
+var ips = "192.168.0.0/24";
 var ports = "80,8080,8081,4747";
 var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg","/screen_stream.mjpeg","/videofeed","/mjpegfeed?640x480","/cam/1/frame.jpg"];
 
 //data = httpHostsConstruct(ips,ports);
-data = httpScan(ips,ports,paths);
-console.log(data);*/
+httpScan(ips,ports,paths,function(data){
+    console.log(data)
+});*/

@@ -37,6 +37,7 @@ module.exports = function(RED) {
 		networksToNmap = config.networksToNmap;
 		
 		hostsConfig = config.hosts.split("\n");
+		
 		var nmapConfig = config.nmap;
 		
         this.on('input', function(msgParam) {
@@ -66,7 +67,7 @@ module.exports = function(RED) {
 			}
 			
 			//Opcao para usar ou nao o nmap (caso desative usa o scan do http que aparentemente esta mais rapido, mas precisa de testes)
-			useNmapScan = false;
+			useNmapScan = true;
 			//Usar ou nao escaneamento de rede (desativa totalmente)
 			useScan = true;
 
@@ -79,10 +80,10 @@ module.exports = function(RED) {
 						hosts = scan.scan(portsToScan,paths,networksToNmap);
 						hosts = scan.hostsConfigToHosts(hostsConfig,hosts);
 						globalContext.set("hosts",hosts);
+
+						//startCapture e startStream sao chamados dentro de filtrarVideos
 						hosts = filtrarVideos(hosts);
 						
-						startCapture(hosts);
-						startStream(hosts);
 					} else {
 						console.log(">>>>USE HTTP SCAN<<<<");
 						httpScan(networksToNmap,portsToScan,paths,scanCallBack);
@@ -109,7 +110,8 @@ module.exports = function(RED) {
 function scanCallBack(hosts){
 	hosts = scan.hostsConfigToHosts(hostsConfig,hosts);
 	globalContext.set("hosts",hosts);
-
+	//Quando o httpScan e utilizado nao ha necessidade de filtrar os host
+	//ele ja retorna o resultado filtrado
 	startCapture(hosts);
 	startStream(hosts);
 }
@@ -142,8 +144,6 @@ function startCapture(hosts){
 			url = host.protocol+"://"+host.ip+":"+host.port+host.path
 			//salvar todas as cameras possiveis
 			var dt = new Date();
-			//path += "/"+dt.getFullYear() + "-" + months[dt.getMonth()] + "-" + dt.getDate() + "_" + dt.getHours() + "-" + dt.getMinutes() + "-" + dt.getSeconds()
-			var dt = new Date();
 			path += "/"+ dt.toISOString().split(".")[0].replace(/[:]/g,"-")
 			cmd = "ffmpeg -i "+url+" -vframes 1 -updatefirst 1 "+path+ ".jpg -y";
 			exec.exec(cmd, function(error, stdout, stderr) {
@@ -175,6 +175,15 @@ function startStream(hosts){
 	streamCode = 1;
 	for (var i = 0; i < hosts.length; i++){
 		hosts[i].urlCode = streamCode++;
+
+		//Para os formatos RTSP cria-se um arquivo jpg que sera servido via http
+		if (hosts[i].protocol == 'rtsp'){
+			var host = hosts[i];
+			var url = host.protocol+"://"+host.ip+":"+host.port+host.path;
+			var cmd = "ffmpeg -i "+url+" -f image2 -updatefirst 1 ./captures/stream-"+host.urlCode+".jpg -y";
+			console.log(cmd);
+			exec.exec(cmd);
+		}
 	}
 
 	
@@ -187,6 +196,7 @@ function startStream(hosts){
 		globalContext.get("server").close();
 		console.log("Server off");
 	}
+
 
 	
 	//abre um novo server
@@ -204,14 +214,23 @@ function startStream(hosts){
 			reqUrl = req.url.split("?");
 			reqUrl = reqUrl[0];
 			//console.log("req:"+ reqUrl +" - host:"+ host.urlCode);
-			if (reqUrl === '/'+host.urlCode){//'/'+host.ip.replace(/\./g, '_')) {
-				console.log(url);
+			if (reqUrl === '/'+host.urlCode){
 				
-				var x = request(url);
-				//Se tivesse como conseguir o cabecalho aqui seria ideal
-				//Mas o request nao retorna o cabecalho completo
-				req.pipe(x);
-				x.pipe(resp);
+				
+				if (host.protocol == 'rtsp'){
+					var file = "./captures/stream-"+host.urlCode+".jpg";
+					console.log(file);
+					//Serve o arquivo capturado de rtsp
+					fs.readFile(file, function (err, data) {
+						resp.end(data);
+					});
+				} else {
+					console.log(url);
+					//Serve diretamente as imagens das cameras
+					var x = request(url);
+					req.pipe(x);
+					x.pipe(resp);
+				}
 				
 			}
 			
@@ -233,41 +252,24 @@ function startStream(hosts){
 		reqUrl = host.urlCode;
 		//Videos que foram definidos na configuracao nao sao testados
 		//Todos esses serao do tipo update, melhorar isso depois porque posso ter um que nao necessite ser update
-		if (host.type == 'jpeg' || host.type == null){
+		if (host.type == 'jpeg' || host.type == null || host.protocol == 'rtsp'){
 			autoUpdate = 'video update';
 		} else {
 			autoUpdate = 'video';
 		}
-		//quando é via plugin do vlc
-		if (host.type == 'mpegurl' || host.protocol == 'rtsp'){
-			if (host.protocol == 'rtsp'){
-				
-				//console.log("matando")
-				//mata todos os processos do vlc
-				/*var cmd = exec('Taskkill /IM vlc.exe /F', function(error, stdout, stderr) {
-					console.log("ok");
-					//cria o processo do vlc
-					cmd = 'vlc -I rc -I http rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov :sout=#transcode{vcodec=h264,scale=acodec=mpga,ab=128,channels=2,samplerate=44100}:http{mux=ffmpeg{mux=flv},dst=:'+portForRTSP+'/'+reqUrl+'} :sout-keep'
-					console.log(cmd)
-					cmd = exec(cmd);
-				});*/
+		
 
-				list = exec.execSync('tasklist');
-				if (list.indexOf('vlc') > -1){
-					exec.execSync('taskkill /IM vlc.exe /F');
-				}
-				cmd = 'vlc -I rc -I http rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov :sout=#transcode{vcodec=h264,scale=acodec=mpga,ab=128,channels=2,samplerate=44100}:http{mux=ffmpeg{mux=flv},dst=:'+portForRTSP+'/'+reqUrl+'} :sout-keep'
-				console.log(cmd)
-				cmd = exec.exec(cmd);
-				
-				port = portForRTSP;
-			} else {
-				port = portForStream;
-			}
-			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+port+'/'+reqUrl+'" />'
+
+		//quando é via plugin do vlc
+		if (host.type == 'mpegurl'){
+			//app RTSP Camera que serve rtsp em http apresenta deficiencias
+			//nao foi possivel utilizar o ffmpeg com ele devido ao formato m3u
+			//e possivel servir com o http.createServer basta escrever esse objeto
+			//o usuario precisa ter o plugin do vlc, firefox v49.0 vlc 2.2.2 
+			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
-			//quando é streaming com png
+			//para todos os outros streams sera usado o padrao jpg
 			html += '<img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'">';
 		}
 		
@@ -292,16 +294,24 @@ function filtrarVideos(hosts){
 	var httpTest = require('http');
 	for (var i = 0; i < hosts.length; i++){
 		host = hosts[i];
+
+		if (host.protocol == 'rtsp'){
+			//caso ele esteja no protocolo rtsp nao sera filtrado
+			hosts_filtrados.push(host);
+			completes += paths.length;//Soma para sair da espera
+			continue;
+		}
 		
 		for (var y = 0; y < paths.length; y++){
 		
+			
 			var options = {
 				host: host.ip,
 				port: host.port,
 				path: paths[y],
 				timeout: 1000
 			};
-
+			
 			httpTest.get(options, function(resp){
 				
 				console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
@@ -312,6 +322,7 @@ function filtrarVideos(hosts){
 					if (host_part[1] == undefined){//quando é na porta 80 ele nao coloca porta nenhuma
 						host_part[1] = 80;
 					}
+					
 					if (scan.hostExistsIn(host_part[0],hosts_filtrados) == false){
 						
 						hosts_filtrados.push({ip:host_part[0],
@@ -327,17 +338,20 @@ function filtrarVideos(hosts){
 				
 			}).on("error", function(e,resp){
 				completes++;
-				console.log("Got error: " + e.message);
+				//console.log("Got error: " + e.message);
 			});
 		}
 	}
 	
 	
+	//Espera as urls serem testadas
 	var interval = setInterval(function(){
 		console.log("Testando videos...");
 		if (completes == (hosts.length * paths.length)){
 			clearInterval(interval);
-			console.log("iniciando stream");
+			console.log("iniciando captura.");
+			startCapture(hosts_filtrados);
+			console.log("iniciando stream.");
 			//só começa a realizar o stream quando testar todos os hosts
 			startStream(hosts_filtrados,node,msg);
 		}
