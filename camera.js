@@ -16,10 +16,10 @@ var globalContext;
 //paths da url onde as cameras operam
 var paths = ['/video','/image/jpeg.cgi','/mjpeg',"/live.jpeg","/screen_stream.mjpeg","/videofeed","/mjpegfeed?640x480","/cam/1/frame.jpg"];
 
-var fs = require('fs');
-var scan = require('./scan');
-var httpScan = require('./httpScan').httpScan;
-
+const fs = require('fs');
+const scan = require('./scan');
+const httpScan = require('./httpScan').httpScan;
+const exec = require('child_process');
 
 module.exports = function(RED) {
     function CameraNode(config) {
@@ -77,8 +77,11 @@ module.exports = function(RED) {
 					if (useNmapScan){
 						console.log(">>>>USE NMAP SCAN<<<<");
 						hosts = scan.scan(portsToScan,paths,networksToNmap);
+						hosts = scan.hostsConfigToHosts(hostsConfig,hosts);
 						globalContext.set("hosts",hosts);
 						hosts = filtrarVideos(hosts);
+						
+						startCapture(hosts);
 						startStream(hosts);
 					} else {
 						console.log(">>>>USE HTTP SCAN<<<<");
@@ -91,7 +94,10 @@ module.exports = function(RED) {
 					startStream(hosts);
 				}
 			} else {//caso opte por nao usar
-				startStream([]);
+				hosts = scan.hostsConfigToHosts(hostsConfig,[]);
+
+				startCapture(hosts);
+				startStream(hosts);
 			}
 			
 			
@@ -101,17 +107,59 @@ module.exports = function(RED) {
 }
 
 function scanCallBack(hosts){
+	hosts = scan.hostsConfigToHosts(hostsConfig,hosts);
 	globalContext.set("hosts",hosts);
+
+	startCapture(hosts);
 	startStream(hosts);
 }
 
+
+
+function startCapture(hosts){
+	
+	//Captura
+	//cria pasta
+	if (!fs.existsSync("./captures")){
+		fs.mkdirSync("./captures");
+	}
+	//Cria processos para salvar as cameras
+	var totalSaved = hosts.length;
+	setInterval(function(){
+		//Controle para só salvar o proximo frame se todos os anteriores tiverem sido salvos
+		//Para evitar muitos processos no server
+		if (totalSaved < hosts.length){
+			return;
+		}
+		totalSaved = 0;
+		for (var i = 0; i < hosts.length; i++){
+			host = hosts[i];
+			
+			path = "captures/"+host.ip.replace(/\./g, '_')+"/";
+			if (!fs.existsSync(path)){
+				fs.mkdirSync(path);
+			}
+			url = host.protocol+"://"+host.ip+":"+host.port+host.path
+			//salvar todas as cameras possiveis
+			var dt = new Date();
+			//path += "/"+dt.getFullYear() + "-" + months[dt.getMonth()] + "-" + dt.getDate() + "_" + dt.getHours() + "-" + dt.getMinutes() + "-" + dt.getSeconds()
+			var dt = new Date();
+			path += "/"+ dt.toISOString().split(".")[0].replace(/[:]/g,"-")
+			cmd = "ffmpeg -i "+url+" -vframes 1 -updatefirst 1 "+path+ ".jpg -y";
+			exec.exec(cmd, function(error, stdout, stderr) {
+				totalSaved++;
+			});
+		}
+		//verificar se esta conseguindo salvar, se nao conseguir mais ele deve parar de tentar
+	},3000);
+}
 
 
 /**
  * Inicia o stream de videos
  */
 function startStream(hosts){
-	hosts = scan.hostsConfigToHosts(hostsConfig,hosts);
+	
 	
 	/*hosts = [{ip:'192.168.0.11',
 			port:8080,
@@ -140,38 +188,6 @@ function startStream(hosts){
 		console.log("Server off");
 	}
 
-	const exec = require('child_process');
-
-	//Captura
-	//cria pasta
-	if (!fs.existsSync("./captures")){
-		fs.mkdirSync("./captures");
-	}
-	//Cria processos para salvar as cameras
-	var totalSaved = hosts.length;
-	setInterval(function(){
-		//Controle para só salvar o proximo frame se todos os anteriores tiverem sido salvos
-		//Para evitar muitos processos no server
-		if (totalSaved < hosts.length){
-			return;
-		}
-		totalSaved = 0;
-		for (var i = 0; i < hosts.length; i++){
-			host = hosts[i];
-			path = "captures/"+host.ip.replace(/\./g, '_')+"/";
-			if (!fs.existsSync(path)){
-				fs.mkdirSync(path);
-			}
-			url = host.protocol+"://"+host.ip+":"+host.port+host.path
-			//salvar todas as cameras possiveis
-			cmd = "ffmpeg -i "+url+" -vframes 1 -updatefirst 1 "+path+ (new Date().getTime()) +".jpg -y";
-			exec.exec(cmd, function(error, stdout, stderr) {
-				totalSaved++;
-			});
-		}
-		//verificar se esta conseguindo salvar, se nao conseguir mais ele deve parar de tentar
-	},3000);
-	
 	
 	//abre um novo server
 	server = http.createServer(function (req, resp) {
