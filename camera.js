@@ -67,7 +67,7 @@ module.exports = function(RED) {
 			}
 			
 			//Opcao para usar ou nao o nmap (caso desative usa o scan do http que aparentemente esta mais rapido, mas precisa de testes)
-			useNmapScan = true;
+			useNmapScan = false;
 			//Usar ou nao escaneamento de rede (desativa totalmente)
 			useScan = true;
 

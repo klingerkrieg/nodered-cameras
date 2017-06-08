@@ -56,7 +56,7 @@ function httpScan(ips,ports,paths,callBack){
                 }).on("error", function(e,resp){
                     completes++;
                     //console.log("Got error: " + e.message);
-                }).setTimeout(3000,function(){
+                }).setTimeout(5000,function(){
                     completes++;
                     this.abort();
                     //console.log("Timeout");
