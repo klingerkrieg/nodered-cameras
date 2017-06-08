@@ -11,7 +11,6 @@ var hostExistsIn = require('./scan').hostExistsIn;
  */
 function httpScan(ips,ports,paths,callBack){
 	var hosts = httpHostsConstruct(ips);
-    
     ports = ports.split(",");
 	var hosts_filtrados = [];
 	var completes = 0;

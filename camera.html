@@ -6,8 +6,10 @@
             name: {value:""},
             searchPorts: {value:""},
             hosts : {value:""},
-            nmap : {value:true, type:"boolean"},
-            networksToNmap : {value:""}
+            scanType : {value: "http"},
+            capture : {value: true, type: "boolean"},
+            networksToNmap : {value:""},
+            capturePath : {value:"./captures"}
         },
         inputs:1,
         outputs:1,
@@ -20,32 +22,42 @@
 <script type="text/x-red" data-template-name="camera">
 
     <div class="form-row">
-        <label id="nmap">nmap</label>
-        <label id="nmap">ffmpeg</label>
-    </div>
-
-    <div class="form-row">
-        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <label for="node-input-name">Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-searchPorts"><i class="icon-tag"></i> Ports</label>
-        <input type="text" id="node-input-searchPorts">
+        <label for="node-input-searchPorts">Ports</label>
+        <input type="text" id="node-input-searchPorts" placeholder="80,8080,8081,4747">
     </div>
     <div class="form-tips"><b>Configure portas separadas por ","<br/>default:</b>80,8080,8081,4747</div>
     <div class="form-row">
-        <label for="node-input-nmap"><i class="icon-tag"></i> Nmap</label>
-        <input type="checkbox" id="node-input-nmap">
+        <label for="node-input-scanType"></i> Scan type:</label>
+        <select id="node-input-scanType">
+            <option value="none">No scan</option>
+            <option value="http">HTTP</option>
+            <option value="nmap">Nmap</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label><b>Captures</b></label>
+    </div>
+    <div class="form-row">
+        <label for="node-input-capture">Active:</label>
+        <input type="checkbox" id="node-input-capture" value="1" style="width:20px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-capturePath">Path:</label>
+        <input type="text" id="node-input-capturePath"  placeholder="./captures">
     </div>
     <div class="form-tips">Marque usar nmap caso queira que ele procure por câmeras automaticamente.</div>
     <div class="form-row">
-        <label for="node-input-networksToNmap"><i class="icon-tag"></i> Networks</label>
-        <input type="text" id="node-input-networksToNmap">
+        <label for="node-input-networksToNmap"></i> Networks</label>
+        <input type="text" id="node-input-networksToNmap"  placeholder="192.168.0.0/24 192.168.1.22">
     </div>
     <div class="form-tips">Caso necessário, configure uma ou mais networks para o nmap: 192.168.0.0/24<br/> Ou ip fixo separador por espaço 192.168.0.10 192.168.0.11</div>
     <div class="form-row">
-        <label for="node-input-hosts"><i class="icon-tag"></i> Hosts</label>
-        <textarea id="node-input-hosts"></textarea>
+        <label for="node-input-hosts"> Hosts</label>
+        <textarea id="node-input-hosts" style="width:70%;"></textarea>
     </div>
     <div class="form-tips"><b>Configure endereços de câmeras com path, exemplo:</b> http://192.168.0.2:80/video (Utilizado para dispositivos não compatíveis por padrão)</div>
     <br/>
@@ -56,7 +68,7 @@
         <a target="_blank" href="https://play.google.com/store/apps/details?id=com.BenLin.BLIPCamera.Free">
             <img src="./icons/blipcamera.png"> BL IP-Camera Free</a><br/>
         <a target="_blank" href="https://play.google.com/store/apps/details?id=com.dev47apps.droidcam">
-            <img src="./icons/droidcam.png"> DroidCam Wireless Webcam</a><br/>
+            <img src="./icons/droidcam.png"> DroidCam Wireless Webcam</a> No record<br/>
         <a target="_blank" href="https://play.google.com/store/apps/details?id=com.dipbox.eye">
             <img src="./icons/phoneeye.png"> Phone eye - Web camera</a><br/>
         <a target="_blank" href="https://play.google.com/store/apps/details?id=info.dvkr.screenstream">
@@ -64,7 +76,7 @@
         <a target="_blank" href="https://play.google.com/store/apps/details?id=com.ipphonecamera">
             <img src="./icons/iphonecamera.png"> IP Phone Camera</a><br/>
         <a target="_blank" href="https://play.google.com/store/apps/details?id=com.miv.rtspcamera">
-            <img src="./icons/rtspcamera.png"> RTSP Camera Server</a><br/>
+            <img src="./icons/rtspcamera.png"> RTSP Camera Server</a> No record<br/>
         <a target="_blank" href="https://play.google.com/store/apps/details?id=veg.mediacapture.sdk.test.server">
             <img src="./icons/rtspserver.png"> VXG RTSP Server (IP camera)</a><br/>
         <a target="_blank" href="https://dlink.com.br/produto/cameras-ip/dcs-932l">
