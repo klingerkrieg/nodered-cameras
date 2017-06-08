@@ -13,6 +13,7 @@ var node;
 var msg;
 var html = "";
 var useScan, useNmapScan, useCapture, capturePath;
+var captureInterval;
 //vai salvar o server e ultimo scaneamento no context
 var globalContext;
 //paths da url onde as cameras operam
@@ -91,6 +92,8 @@ module.exports = function(RED) {
 function receiveInput(msgParam){
 	//salva o obj msg
 	msg = msgParam;
+
+	clearTimeout(captureInterval);
 
 	//Aparentemente ele mantem as variaveis globais
 	html = "";
@@ -181,7 +184,7 @@ function startCapture(hosts){
 	}
 	//Cria processos para salvar as cameras
 	var totalSaved = hosts.length;
-	setInterval(function(){
+	captureInterval = setInterval(function(){
 		//Controle para só salvar o proximo frame se todos os anteriores tiverem sido salvos
 		//Para evitar muitos processos no server
 		if (totalSaved < hosts.length){
