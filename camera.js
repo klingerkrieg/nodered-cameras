@@ -13,7 +13,7 @@ var node;
 var msg;
 var html = "";
 var useScan, useNmapScan, useCapture, capturePath;
-var captureInterval;
+var captureInterval, rtspInterval;
 //vai salvar o server e ultimo scaneamento no context
 var globalContext;
 //paths da url onde as cameras operam
@@ -54,11 +54,13 @@ module.exports = function(RED) {
 			useNmapScan = false;
 		} else 
 		if (config.scanType == "http"){
+			globalContext.set("running",false);
 			//o escaneamento http e mais rapido, porem nao encontra rtsp
 			useScan = true;
 			useNmapScan = false;
 		} else 
 		if (config.scanType == "nmap"){
+			globalContext.set("running",false);
 			useScan = true;
 			//Opcao para usar o nmap, dessa forma encontra rtsp e http, porem mais lento
 			useNmapScan = true;
@@ -176,7 +178,10 @@ function startCapture(hosts){
 	if (useCapture == false){
 		return;
 	}
-	
+
+	if (globalContext.get("running") != false ){
+		return;
+	}
 	//Captura
 	//cria pasta
 	if (!fs.existsSync(capturePath)){
@@ -213,6 +218,13 @@ function startCapture(hosts){
 }
 
 
+function verificaStatus(){
+	if (globalContext.get("running") == undefined || globalContext.get("running") == null || (new Date()).getTime() - globalContext.get("running") > 5){
+		globalContext.set("running",false);
+	}
+}
+
+
 /**
  * Inicia o stream de videos
  */
@@ -228,21 +240,27 @@ function startStream(hosts){
 	console.log("Hosts encontrados...");
 	console.log(hosts);
 
+	verificaStatusInterval = setInterval(verificaStatus,5000);
 
 	//Adiciona um codigo ao video para substituir o ip na url
 	streamCode = 1;
 	for (var i = 0; i < hosts.length; i++){
 		hosts[i].urlCode = streamCode++;
-
-		//Para os formatos RTSP cria-se um arquivo jpg que sera servido via http
-		if (hosts[i].protocol == 'rtsp'){
-			var host = hosts[i];
-			var url = host.protocol+"://"+host.ip+":"+host.port+host.path;
-			var cmd = "ffmpeg -i "+url+" -f image2 -updatefirst 1 "+capturePath+"/stream-"+host.urlCode+".jpg -y";
-			console.log(cmd);
-			exec.exec(cmd);
-		}
 	}
+
+	clearInterval(rtspInterval);
+	rtspInterval = setInterval(function(){
+		for (var i = 0; i < hosts.length; i++){
+			//Para os formatos RTSP cria-se um arquivo jpg que sera servido via http
+			if (hosts[i].protocol == 'rtsp'){
+				var host = hosts[i];
+				var url = host.protocol+"://"+host.ip+":"+host.port+host.path;
+				var cmd = "ffmpeg -i "+url+" -f image2 -vframes 1 "+capturePath+"/stream-"+host.urlCode+".jpg -y";
+				console.log(cmd);
+				exec.exec(cmd);
+			}
+		}
+	},2000);
 
 	
 	var request = require('request');
@@ -273,22 +291,27 @@ function startStream(hosts){
 			reqUrl = reqUrl[0];
 			//console.log("req:"+ reqUrl +" - host:"+ host.urlCode);
 			if (reqUrl === '/'+host.urlCode){
-				
-				
-				if (host.protocol == 'rtsp'){
-					var file = capturePath+"/stream-"+host.urlCode+".jpg";
-					console.log(file);
-					//Serve o arquivo capturado de rtsp
-					fs.readFile(file, function (err, data) {
-						resp.end(data);
-					});
-				} else {
-					console.log(url);
-					//Serve diretamente as imagens das cameras
-					var x = request(url);
-					req.pipe(x);
-					x.pipe(resp);
+				globalContext.set("running", new Date().getTime() );
+				try {
+					if (host.protocol == 'rtsp'){
+						var file = capturePath+"/stream-"+host.urlCode+".jpg";
+						console.log(file);
+						//Serve o arquivo capturado de rtsp
+						fs.readFile(file, function (err, data) {
+							resp.end(data);
+						});
+					} else {
+						console.log(url);
+						//Serve diretamente as imagens das cameras
+						var x = request(url);
+						req.pipe(x);
+						x.pipe(resp);
+					}	
+				} catch (error) {
+					resp.write("");
+					resp.end();
 				}
+				
 				
 			}
 			
@@ -303,7 +326,7 @@ function startStream(hosts){
 	
 	
 
-	html += '<style>.video{ width:320px;height:320px;border:1px solid;margin:5px; }</style>';
+	html += '<style>.boxVideo{display:inline;} .video{ width:320px;height:320px;border:1px solid;margin:5px; background-image:url("./icons/cameraoff.png"); background-size:320px; }</style>';
 	for (var i = 0; i < hosts.length; i++){
 		
 		host = hosts[i];
@@ -324,12 +347,13 @@ function startStream(hosts){
 			//nao foi possivel utilizar o ffmpeg com ele devido ao formato m3u
 			//e possivel servir com o http.createServer basta escrever esse objeto
 			//o usuario precisa ter o plugin do vlc, firefox v49.0 vlc 2.2.2 
-			html += '<embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'" />'
+			html += '<div id="boxVideo"><embed class='+autoUpdate+' type="application/x-vlc-plugin" pluginspage="http://www.videolan.org" autoplay="yes" loop="no" width="300" height="200" target="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'" />'
 				 +'<object classid="clsid:9BE31822-FDAD-461B-AD51-BE1D1C159921" codebase="http://download.videolan.org/pub/videolan/vlc/last/win32/axvlc.cab" style="display:none;"></object>';
 		} else {
 			//para todos os outros streams sera usado o padrao jpg
-			html += '<img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'">';
+			html += '<div id="boxVideo"><img class="'+autoUpdate+'" src="http://'+urlToServer+':'+portForStream+'/'+reqUrl+'">';
 		}
+		html += "<br/>"+host.ip+" <a target='_blank' download='"+ new Date().getTime() +".jpg' href=http://"+urlToServer+":"+portForStream+"/"+reqUrl+">Download</a></div>";
 	}
 	//Script para atualizar as cameras que sao do tipo jpeg sem stream
 	html += "<script>function updateImage() {imgs = document.getElementsByClassName('update');for (var _i = 0; _i < imgs.length; _i++){imgs[_i].src = imgs[_i].src.split('?')[0] + '?t='+ new Date().getTime();console.log(imgs[_i].src);}} setInterval(updateImage, 1000);</script>";
