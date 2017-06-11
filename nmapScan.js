@@ -1,7 +1,7 @@
 
 module.exports = {
   nmapSync: nmapSync,
-
+  filtrarVideos: filtrarVideos,
   nmap: nmap
 }
 
@@ -59,6 +59,86 @@ function readResponse(stdout){
         data.push({'ip':ip,'openPorts':ports});
     }
     return data;
+}
+
+
+
+/**
+ * Verifica para cada host se ele possui alguma url com video
+ */
+function filtrarVideos(hosts,scanCallBack,context){
+	var hosts_filtrados = [];
+
+	const hostExistsIn = require('./scan').hostExistsIn;
+
+	var getPaths = require('./paths').getPaths;
+	var paths = getPaths();
+	
+	var completes = 0;
+	var httpTest = require('http');
+	for (var i = 0; i < hosts.length; i++){
+		host = hosts[i];
+
+		if (host.protocol == 'rtsp'){
+			//caso ele esteja no protocolo rtsp nao sera filtrado
+			hosts_filtrados.push(host);
+			completes += paths.length;//Soma para sair da espera
+			continue;
+		}
+		
+		for (var y = 0; y < paths.length; y++){
+		
+			
+			var options = {
+				host: host.ip,
+				port: host.port,
+				path: paths[y],
+				timeout: 1000
+			};
+			
+			httpTest.get(options, function(resp){
+				
+				console.log("Test:"+resp.req._headers.host+resp.req.path+" - "+resp.statusCode);
+				
+				if (resp.statusCode == 200){
+					
+					host_part = resp.req._headers.host.split(":");
+					if (host_part[1] == undefined){//quando é na porta 80 ele nao coloca porta nenhuma
+						host_part[1] = 80;
+					}
+					
+					if (hostExistsIn(host_part[0],hosts_filtrados) == false){
+						
+						hosts_filtrados.push({ip:host_part[0],
+											  port:host_part[1],
+											  path:resp.req.path,
+											  type:resp.headers['content-type'].split('/')[1],
+											  protocol:"http"});
+					}
+					
+				}
+				completes++;
+				this.abort();
+				
+			}).on("error", function(e,resp){
+				completes++;
+				//console.log("Got error: " + e.message);
+			});
+		}
+	}
+	
+
+	
+	//Espera as urls serem testadas
+	var interval = setInterval(function(){
+		console.log("Testando videos...");
+		if (completes == (hosts.length * paths.length)){
+			clearInterval(interval);
+			scanCallBack(hosts_filtrados,context);
+		}
+	}, 500);
+	
+	
 }
 
 

@@ -1,25 +1,22 @@
 <script type="text/javascript">
-    RED.nodes.registerType('Camera All Configs',{
+    RED.nodes.registerType('Cam NMAP Scanner',{
         category: 'function',
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
             searchPorts: {value:""},
             hosts : {value:""},
-            scanType : {value: "http"},
-            capture : {value: true, type: "boolean"},
-            networksToNmap : {value:""},
-            capturePath : {value:"./captures"}
+            networksToNmap : {value:""}
         },
         inputs:1,
         outputs:1,
-        icon: "camera.png",
+        icon: "scanNmap.png",
         label: function() {
-            return this.name||"Camera All Configs";
+            return this.name||"Cam NMAP Scanner";
         }
     });
 </script>
-<script type="text/x-red" data-template-name="Camera All Configs">
+<script type="text/x-red" data-template-name="Cam NMAP Scanner">
 
     <div class="form-row">
         <label for="node-input-name">Name</label>
@@ -30,26 +27,6 @@
         <input type="text" id="node-input-searchPorts" placeholder="80,8080,8081,4747">
     </div>
     <div class="form-tips"><b>Configure portas separadas por ","<br/>default:</b>80,8080,8081,4747</div>
-    <div class="form-row">
-        <label for="node-input-scanType"></i> Scan type:</label>
-        <select id="node-input-scanType">
-            <option value="none">No scan</option>
-            <option value="http">HTTP</option>
-            <option value="nmap">Nmap</option>
-        </select>
-    </div>
-    <div class="form-row">
-        <label><b>Captures</b></label>
-    </div>
-    <div class="form-row">
-        <label for="node-input-capture">Active:</label>
-        <input type="checkbox" id="node-input-capture" value="1" style="width:20px;">
-    </div>
-    <div class="form-row">
-        <label for="node-input-capturePath">Path:</label>
-        <input type="text" id="node-input-capturePath"  placeholder="./captures">
-    </div>
-    <div class="form-tips">Marque usar nmap caso queira que ele procure por câmeras automaticamente.</div>
     <div class="form-row">
         <label for="node-input-networksToNmap"></i> Networks</label>
         <input type="text" id="node-input-networksToNmap"  placeholder="192.168.0.0/24 192.168.1.22">
@@ -92,13 +69,12 @@
         <li><a target="_blank" href="https://ffmpeg.org/download.html">FFMPEG</a></li>
         <li>sudo add-apt-repository ppa:mc3man/trusty-media</li>
         <li>sudo apt-get update</li>
-        <li>sudo apt-get install ffmpeg gstreamer0.10-ffmpeg </li>
-        
-    </ul>    
+        <li>sudo apt-get install ffmpeg gstreamer0.10-ffmpeg </li>    
+    </ul>
     </p>
 </script>
 
 
 <script type="text/x-red" data-help-name="camera">
-    <p>Um nó que procura câmeras na rede e distribui o streaming.<br/>
+    <p>Nó para busca na rede via Nmap.<br/>
 </script>

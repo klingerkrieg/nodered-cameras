@@ -5,12 +5,15 @@ module.exports = {
 
 var getIpRangeNetMask = require('./ipv4').getIpRangeNetMask;
 var hostExistsIn = require('./scan').hostExistsIn;
+var getPaths = require('./paths').getPaths;
 
 /**
  * Realiza o escaneamento pela rede ja retornando hosts validos com enderecos testados
  */
-function httpScan(ips,ports,paths,callBack){
+function httpScan(ips,ports,callBack,context){
 	var hosts = httpHostsConstruct(ips);
+
+    var paths = getPaths();
     ports = ports.split(",");
 	var hosts_filtrados = [];
 	var completes = 0;
@@ -71,7 +74,7 @@ function httpScan(ips,ports,paths,callBack){
 		if (completes >= (hosts.length * paths.length * ports.length)){
 			clearInterval(interval);
 			//chama callback
-			callBack(hosts_filtrados);
+			callBack(hosts_filtrados,context);
 		}
 	}, 500);
 

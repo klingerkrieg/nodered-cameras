@@ -1,0 +1,37 @@
+<script type="text/javascript">
+    RED.nodes.registerType('Cam Stream',{
+        category: 'function',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:""}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "cameraStream.png",
+        label: function() {
+            return this.name||"Cam Stream";
+        }
+    });
+</script>
+<script type="text/x-red" data-template-name="Cam Stream">
+
+    <div class="form-row">
+        <label for="node-input-name">Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    Requer:
+    <ul>
+        <li><a target="_blank" href="https://ffmpeg.org/download.html">FFMPEG</a></li>
+        <li>sudo add-apt-repository ppa:mc3man/trusty-media</li>
+        <li>sudo apt-get update</li>
+        <li>sudo apt-get install ffmpeg gstreamer0.10-ffmpeg </li>
+        
+    </ul>    
+    </p>
+</script>
+
+
+<script type="text/x-red" data-help-name="camera">
+    <p>Um nó que realiza o streaming dos das cameras em payload.hosts.<br/>
+</script>
